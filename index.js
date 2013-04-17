@@ -1,0 +1,170 @@
+var spawn = require('child_process').spawn;
+var touchstone = require('touchstone');
+var fileServer = require('simple-http-server');
+var browserstack = require('browserstack');
+var config = require('./config.json');
+var async = require('async');
+var net = require('net');
+var util = require('util');
+var tapConv = require('tap-test-converter');
+var program = require('commander');
+var pkg = require('./package');
+var StreamSplitter = require("stream-splitter");
+
+
+program
+    .version(pkg.version)
+    .option('-v, --verbose', 'output debugging information')
+    .parse(process.argv);
+
+function log (msg) {
+    if (program.verbose) console.log(msg);
+}
+
+var ids = {}; // used to track the test runs
+var tunnel;
+
+// setup browserstack
+var client = browserstack.createClient({
+    username: config.bs_username,
+    password: config.bs_password
+});
+
+var portrange = 45032;
+
+function getPort (cb) {
+    var port = portrange;
+    portrange += 1;
+
+    var server = net.createServer();
+    server.listen(port, function (err) {
+        server.once('close', function () {
+            cb(port);
+        });
+        server.close();
+    });
+
+    server.on('error', function (err) {
+        getPort(cb);
+    });
+}
+
+function generateShortUUID () {
+    return ('0000' + (Math.random()*Math.pow(36,4) << 0).toString(36)).substr(-4);
+}
+
+function values (obj) {
+    var vals = [];
+    for (var key in obj) {
+        vals.push(obj[key]);
+    }
+    return vals;
+}
+
+function launchBrowsers (port) {
+    for (var i = 0; i < config.browsers.length; i++) {
+        var browser = config.browsers[i];
+        var id = 'bs_' + generateShortUUID();
+        ids[id] = {};
+        ids[id].instance = browser;
+
+        var url = util.format('http://localhost:%s/%s?id=%s',
+            port, config.test_file, id);
+        browser.url = url;
+
+        log('launching: ' + JSON.stringify(browser));
+
+        (function (id) {
+            client.createWorker(browser, function (err, worker) {
+                if (err) throw err;
+                ids[id].worker_id = worker.id;
+            });
+        })(id);
+    }
+}
+
+function processTestResult (id, result) {
+    var instance = ids[id].instance;
+    var browser = util.format('%s %s (%s)', instance.browser, instance.version, instance.os);
+    console.log('# START -- ' + browser + ' ----------');
+    console.log(tapConv(result));
+    console.log('# END ---- ' + browser + ' ----------');
+    if (ids[id]) {
+        client.terminateWorker(ids[id].worker_id, function (err, data) {
+            if (err) throw err;
+            log('successfully terminated worker!!: ' + id);
+            delete ids[id];
+            if (Object.keys(ids).length == 0) {
+                process.exit(0);
+            }
+        });
+    }
+}
+
+async.parallel([
+    function (callback) {
+        getPort(function (port) {
+            fileServer.run({port: port,
+                            directory: config.directory,
+                            nologs: !program.verbose});
+            // TODO: we should be waiting until the fileServer
+            //       is running before calling the callback.
+            callback(null, port);
+        });
+    },
+    function (callback) {
+        getPort(function (port) {
+            port = 1942;
+            touchstone.createServer().listen(port, 'localhost', function () {
+                callback(null, port); // TODO: have we ignored errors here?
+            }).on('result', processTestResult);
+        });
+    }
+], function (err, results) {
+    var tunnelPorts = util.format.apply(this,
+                        ['localhost,%d,0,localhost,%d,0'].concat(results));
+
+    // start tunnel
+    tunnel = spawn('java', ['-jar',
+                            'BrowserStackTunnel.jar',
+                            config.bs_key,
+                            tunnelPorts]);
+    if (program.verbose) tunnel.stdout.pipe(process.stdout); 
+    if (program.verbose) tunnel.stderr.pipe(process.stderr);
+
+    // TODO: if tunnel fails for any reason show error with output from stdout/stderr
+    var splitter = tunnel.stdout.pipe(StreamSplitter('\n'));
+    splitter.encoding = 'utf8';
+    splitter.on('token', function (token) {
+        if (token.substring(0, 61) === 'You can now access your local server(s) in our remote browser') {
+            log('tunnel started successfully!!');
+            launchBrowsers(results[0]);
+        }
+    });
+    splitter.on('done', function () {
+        //TODO: have we failed to start the tunnel?
+    });
+});
+
+var onExit = function () {
+    onExit = null;
+    process.kill(tunnel);
+    // TODO: overkill, we just need a list of worker ids from the ids object
+    var map = function (item, cb) { cb(null, item.worker_id); };
+    async.map(values(ids), map, function (err, ids) {
+        // TODO: only log this if len(ids) > 0
+        log('Stopping' + ' ' + ids.join(', '));
+        async.each(ids, client.terminateWorker.bind(client), function (err) {
+            process.exit(0);
+        });
+    });
+}
+
+function niceExit () {
+    if(onExit) onExit();
+}
+
+process.on('SIGINT', niceExit);
+process.on('SIGTERM', niceExit);
+process.on('SIGHUP', niceExit);
+process.on('exit', niceExit);
