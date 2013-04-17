@@ -126,7 +126,7 @@ async.parallel([
 
     // start tunnel
     tunnel = spawn('java', ['-jar',
-                            'BrowserStackTunnel.jar',
+                            'ext/BrowserStackTunnel.jar',
                             config.bs_key,
                             tunnelPorts]);
     if (program.verbose) tunnel.stdout.pipe(process.stdout); 
