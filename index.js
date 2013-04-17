@@ -152,8 +152,7 @@ var onExit = function () {
     // TODO: overkill, we just need a list of worker ids from the ids object
     var map = function (item, cb) { cb(null, item.worker_id); };
     async.map(values(ids), map, function (err, ids) {
-        // TODO: only log this if len(ids) > 0
-        log('Stopping' + ' ' + ids.join(', '));
+        if (ids.length > 0) log('Stopping' + ' ' + ids.join(', '));
         async.each(ids, client.terminateWorker.bind(client), function (err) {
             process.exit(0);
         });
