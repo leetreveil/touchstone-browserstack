@@ -120,7 +120,7 @@ async.parallel([
     function (callback) {
         getPort(function (port) {
             port = 1942;
-            touchstone.createServer().listen(port, 'localhost', function () {
+            touchstone.createServer().listen(port, function () {
                 callback(null, port); // TODO: have we ignored errors here?
             }).on('result', processTestResult);
         });
