@@ -1,6 +1,5 @@
 var spawn = require('child_process').spawn;
 var touchstone = require('touchstone');
-var fileServer = require('simple-http-server');
 var browserstack = require('browserstack');
 var config = require('./config.json');
 var async = require('async');
@@ -10,6 +9,8 @@ var tapConv = require('tap-test-converter');
 var program = require('commander');
 var pkg = require('./package');
 var StreamSplitter = require("stream-splitter");
+var http = require('http');
+var static = require('node-static');
 
 
 program
@@ -104,12 +105,16 @@ function processTestResult (id, result) {
 async.parallel([
     function (callback) {
         getPort(function (port) {
-            fileServer.run({port: port,
-                            directory: config.directory,
-                            nologs: !program.verbose});
-            // TODO: we should be waiting until the fileServer
-            //       is running before calling the callback.
-            callback(null, port);
+            var fileServer = new static.Server(config.directory);
+            http.createServer(function (req, res) {
+                req.addListener('end', function () {
+                    fileServer.serve(req, res, function (e, rsp) {
+                        log('[' + res.statusCode + ']: ' + req.url);
+                    });
+                }).resume();
+            }).listen(port, function () {
+                callback(null, port);
+            });
         });
     },
     function (callback) {
