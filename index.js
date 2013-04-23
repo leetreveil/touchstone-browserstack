@@ -147,7 +147,8 @@ async.parallel([
         }
     });
     splitter.on('done', function () {
-        //TODO: have we failed to start the tunnel?
+        console.log('ERROR: tunnel failed to start');
+        niceExit();
     });
 });
 
