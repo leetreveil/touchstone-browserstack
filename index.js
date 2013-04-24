@@ -137,11 +137,11 @@ async.parallel([
     if (program.verbose) tunnel.stdout.pipe(process.stdout); 
     if (program.verbose) tunnel.stderr.pipe(process.stderr);
 
-    // TODO: if tunnel fails for any reason show error with output from stdout/stderr
     var splitter = tunnel.stdout.pipe(StreamSplitter('\n'));
     splitter.encoding = 'utf8';
     splitter.on('token', function (token) {
-        if (token.substring(0, 61) === 'You can now access your local server(s) in our remote browser') {
+        var expected = 'You can now access your local server(s) in our remote browser';
+        if (token.substring(0, 61) === expected) {
             log('tunnel started successfully!!');
             launchBrowsers(results[0]);
         }
