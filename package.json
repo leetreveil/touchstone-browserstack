@@ -6,7 +6,6 @@
   "license": "MIT",
   "dependencies": {
     "browserstack": "~0.2.0",
-    "simple-http-server": "~0.1.8",
     "async": "~0.2.7",
     "tap-test-converter": "0.0.0",
     "commander": "~1.1.1",
