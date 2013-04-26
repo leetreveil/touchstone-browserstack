@@ -162,7 +162,8 @@ async.parallel({
     });
     splitter.on('done', function () {
         if (!inShutdown) {
-            console.log('ERROR: browserstack tunnel failed to start');
+            console.log('ERROR: browserstack tunnel failed to start, ' +
+                                'see --verbose output for more info');
             process.exit(1);
         }
     });
