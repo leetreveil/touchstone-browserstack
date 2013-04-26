@@ -162,28 +162,24 @@ async.parallel({
     });
     splitter.on('done', function () {
         if (!inShutdown) {
-            console.log('ERROR: tunnel failed to start');
-            niceExit();
+            console.log('ERROR: browserstack tunnel failed to start');
+            process.exit(1);
         }
     });
 });
 
-var onExit = function () {
-    onExit = null;
+function exit (exitCode) {
+    inShutdown = true;
     process.kill(tunnel);
     var workerIds = values(ids).map(function (item) {return item.worker_id});
     if (workerIds.length > 0) log('Stopping' + ' ' + workerIds.join(', '));
     async.each(workerIds, client.terminateWorker.bind(client), function (err) {
-        process.exit(0);
+        process.exit(exitCode);
     });
 }
 
-function niceExit () {
-    inShutdown = true;
-    if(onExit) onExit();
-}
-
-process.on('SIGINT', niceExit);
-process.on('SIGTERM', niceExit);
-process.on('SIGHUP', niceExit);
-process.on('exit', niceExit);
+process
+    .once('SIGINT', exit)
+    .once('SIGTERM', exit)
+    .once('SIGHUP', exit)
+    .once('exit', exit)
