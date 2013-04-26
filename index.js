@@ -103,8 +103,8 @@ function processTestResult (id, result) {
     }
 }
 
-async.parallel([
-    function (callback) {
+async.parallel({
+    'fileServer' : function (callback) {
         getPort(function (port) {
             var fileServer = new static.Server(config.directory);
             http.createServer(function (req, res) {
@@ -118,7 +118,7 @@ async.parallel([
             });
         });
     },
-    function (callback) {
+    'resultCollector' : function (callback) {
         getPort(function (port) {
             port = 1942;
             touchstone.createServer().listen(port, function () {
@@ -126,9 +126,9 @@ async.parallel([
             }).on('result', processTestResult);
         });
     }
-], function (err, results) {
+}, function (err, ports) {
     var tunnelPorts = util.format.apply(this,
-                        ['localhost,%d,0,localhost,%d,0'].concat(results));
+                        ['localhost,%d,0,localhost,%d,0'].concat(values(ports)));
 
     // start tunnel
     tunnel = spawn('java', ['-jar',
@@ -144,7 +144,7 @@ async.parallel([
         var expected = 'You can now access your local server(s) in our remote browser';
         if (token.substring(0, 61) === expected) {
             log('tunnel started successfully!!');
-            launchBrowsers(results[0]);
+            launchBrowsers(ports.fileServer);
         }
     });
     splitter.on('done', function () {
