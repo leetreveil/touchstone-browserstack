@@ -24,6 +24,7 @@ function log (msg) {
 
 var ids = {}; // used to track the test runs
 var tunnel;
+var inShutdown = false;
 
 // setup browserstack
 var client = browserstack.createClient({
@@ -147,8 +148,10 @@ async.parallel([
         }
     });
     splitter.on('done', function () {
-        console.log('ERROR: tunnel failed to start');
-        niceExit();
+        if (!inShutdown) {
+            console.log('ERROR: tunnel failed to start');
+            niceExit();
+        }
     });
 });
 
@@ -163,6 +166,7 @@ var onExit = function () {
 }
 
 function niceExit () {
+    inShutdown = true;
     if(onExit) onExit();
 }
 
