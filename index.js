@@ -12,6 +12,7 @@ var http = require('http');
 var static = require('node-static');
 
 var ids = {}; // used to track the test runs
+var testResults = [];
 var tunnel;
 var inShutdown = false;
 var resultCollectorPort = 1942;
@@ -102,6 +103,7 @@ function launchBrowsers (port) {
 }
 
 function processTestResult (id, result) {
+    testResults.push(result);
     var instance = ids[id].instance;
     var browser = util.format('%s %s (%s)', instance.browser, instance.version, instance.os);
     console.log('# START -- ' + browser + ' ----------');
@@ -113,7 +115,11 @@ function processTestResult (id, result) {
             log('successfully terminated worker!!: ' + id);
             delete ids[id];
             if (Object.keys(ids).length == 0) {
-                process.exit(0);
+                var totalFailed = testResults.map(function (x) { return x.failed })
+                                             .reduce(function (a, b) { return a + b });
+                console.log(util.format('# out of %d test runs, %d failed', 
+                    testResults.length, totalFailed));
+                process.exit((totalFailed > 0 ? 1 : 0));
             }
         });
     }
