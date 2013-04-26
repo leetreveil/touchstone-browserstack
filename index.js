@@ -25,6 +25,7 @@ function log (msg) {
 var ids = {}; // used to track the test runs
 var tunnel;
 var inShutdown = false;
+var resultCollectorPort = 1942;
 
 // setup browserstack
 var client = browserstack.createClient({
@@ -119,12 +120,9 @@ async.parallel({
         });
     },
     'resultCollector' : function (callback) {
-        getPort(function (port) {
-            port = 1942;
-            touchstone.createServer().listen(port, function () {
-                callback(null, port); // TODO: have we ignored errors here?
-            }).on('result', processTestResult);
-        });
+        touchstone.createServer().listen(resultCollectorPort, function () {
+            callback(null, resultCollectorPort); // TODO: have we ignored errors here?
+        }).on('result', processTestResult);
     }
 }, function (err, ports) {
     var tunnelPorts = util.format.apply(this,
