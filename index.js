@@ -1,7 +1,6 @@
 var spawn = require('child_process').spawn;
 var touchstone = require('touchstone');
 var browserstack = require('browserstack');
-var config = require('./config.json');
 var async = require('async');
 var net = require('net');
 var util = require('util');
@@ -20,8 +19,26 @@ var portRange = 45032;
 
 program
     .version(pkg.version)
+    .option('-c, --config <path to configuration file>')
+    .option('-u, --bs_username <browserstack username>')
+    .option('-p, --bs_password <browserstack password>')
+    .option('-k, --bs_key <browserstack automated testing key>')
+    .option('-t, --testfile <path to testfile relative to testing directory>')
+    .option('-d, --directory <directory to host files from (defaults to current dir)')
     .option('-v, --verbose', 'output debugging information')
     .parse(process.argv);
+
+var config = require(program.config || './config.json');
+config.bs_username = program.bs_username || config.bs_username;
+config.bs_password = program.bs_password || config.bs_password;
+config.bs_key = program.bs_key || config.bs_key;
+config.test_file = program.testfile || config.test_file;
+config.directory = program.directory || config.directory;
+for (var key in config) {
+    if (!config[key]) {
+        throw new Error(key + ' not set in config or cli arguments');
+    }
+}
 
 function log (msg) {
     if (program.verbose) console.log(msg);
