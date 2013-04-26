@@ -12,6 +12,11 @@ var StreamSplitter = require("stream-splitter");
 var http = require('http');
 var static = require('node-static');
 
+var ids = {}; // used to track the test runs
+var tunnel;
+var inShutdown = false;
+var resultCollectorPort = 1942;
+var portRange = 45032;
 
 program
     .version(pkg.version)
@@ -22,22 +27,15 @@ function log (msg) {
     if (program.verbose) console.log(msg);
 }
 
-var ids = {}; // used to track the test runs
-var tunnel;
-var inShutdown = false;
-var resultCollectorPort = 1942;
-
 // setup browserstack
 var client = browserstack.createClient({
     username: config.bs_username,
     password: config.bs_password
 });
 
-var portrange = 45032;
-
 function getPort (cb) {
-    var port = portrange;
-    portrange += 1;
+    var port = portRange;
+    portRange += 1;
 
     var server = net.createServer();
     server.listen(port, function (err) {
