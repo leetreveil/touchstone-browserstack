@@ -53,8 +53,14 @@ async.parallel({
         getPort(function (port) {
             http.createServer(function (req, res) {
                 req.addListener('end', function () {
-                    new static.Server(config.directory).serve(req, res, function (e, rsp) {
-                        log(fmt('[%d]: %s', res.statusCode, req.url));
+                    new static.Server(config.directory).serve(req, res, function (err, result) {
+                        if (err) {
+                            log(fmt('Error serving %s - %s', req.url, err.message));
+                            res.writeHead(err.status, err.headers);
+                            res.end();
+                        } else {
+                            log(fmt('[%d]: %s', res.statusCode, req.url));
+                        }
                     });
                 }).resume();
             }).listen(port, function () {
