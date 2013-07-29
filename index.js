@@ -156,6 +156,7 @@ function launchBrowsers (port) {
 }
 
 function processTestResult (id, result) {
+    if (!ids[id]) return;
     testResults.push(result);
     var instance = ids[id].instance;
     var browser = fmt('%s %s (%s)', instance.browser, instance.version, instance.os);
