@@ -195,6 +195,11 @@ function exit (exitCode) {
     });
 }
 
+process.on('uncaughtException', function (err) {
+    process.kill(tunnel);
+    throw err;
+});
+
 process
     .once('SIGINT', exit)
     .once('SIGTERM', exit)
